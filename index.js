@@ -18,7 +18,7 @@ const chatbotPopup = document.querySelector("#chatbot-popup");
 const connectionStatus = document.querySelector("#connection-status");
 
 // API Key & URL
-const API_KEY = "AIzaSyAXs4Q808mAPnr4AtErdzax3LXpJQ5vX3c";
+const API_KEY = "AIzaSyCvYyjNgP1zdTnJODPV7BW8FUOsD-q4tek";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
 // User session and chat data
