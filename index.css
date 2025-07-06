@@ -91,6 +91,14 @@ html, body {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1;
+}
+
+#firebase-button,
 #close-chatbot {
     background: rgba(255, 255, 255, 0.2);
     padding: 8px;
@@ -101,16 +109,31 @@ html, body {
     cursor: pointer;
     transition: all 0.2s ease;
     backdrop-filter: blur(10px);
-    z-index: 1;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+#firebase-button:hover,
 #close-chatbot:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: translateY(-1px);
 }
 
+#firebase-button:active,
 #close-chatbot:active {
     transform: translateY(0);
+}
+
+#firebase-button.connected {
+    background: rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+#firebase-button.connected:hover {
+    background: rgba(16, 185, 129, 0.4);
 }
 
 .chatbot-messages {
@@ -552,6 +575,29 @@ html, body {
 
 #send-message:active {
     transform: translateY(0);
+}
+
+/* Notification Styles */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
 }
 
 /* Responsive Design */
