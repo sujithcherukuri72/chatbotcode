@@ -17,7 +17,7 @@ const chatbotPopup = document.querySelector("#chatbot-popup");
 const connectionStatus = document.querySelector("#connection-status");
 
 // API Configuration
-const API_KEY = "AIzaSyAXs4Q8o8mAPnr4AtErdzax3LXpJQ5vX3c";
+const API_KEY = "AIzaSyAbKbDf03zXS7j7_kyupUmCuVxuQiRzaao";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
 // Our Firebase Configuration - Pre-configured for all users
