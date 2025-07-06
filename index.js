@@ -2,49 +2,78 @@ const messageInput = document.querySelector(".message-input");
 const chatbotBody = document.querySelector(".chatbot-messages");
 const sendMessageButton = document.querySelector("#send-message");
 const closeButton = document.querySelector("#close-chatbot");
+const backToIntroButton = document.querySelector("#back-to-intro");
 const chatForm = document.querySelector(".chat-form");
 const emojiButton = document.querySelector("#emoji-button");
 const fileButton = document.querySelector("#file-button");
 const fileInput = document.querySelector("#file-input");
 const emojiPicker = document.querySelector("#emoji-picker");
 const emojiGrid = document.querySelector("#emoji-grid");
-const firebaseButton = document.querySelector("#firebase-button");
 const filePreviewArea = document.querySelector("#file-preview-area");
 const removeFileButton = document.querySelector("#remove-file");
+const startChatButton = document.querySelector("#start-chat-btn");
+const introPage = document.querySelector("#intro-page");
+const chatbotPopup = document.querySelector("#chatbot-popup");
+const connectionStatus = document.querySelector("#connection-status");
 
-// API Configuration - Updated with your credentials
+// API Configuration
 const API_KEY = "AIzaSyAXs4Q8o8mAPnr4AtErdzax3LXpJQ5vX3c";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-// Your Firebase Project Configuration
-const FIREBASE_PROJECT_ID = "indrones-auth";
+// Our Firebase Configuration - Pre-configured for all users
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAXs4Q8o8mAPnr4AtErdzax3LXpJQ5vX3c",
+    authDomain: "indrones-auth.firebaseapp.com",
+    projectId: "indrones-auth",
+    storageBucket: "indrones-auth.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abcdef123456"
+};
 
-// Chat Storage - Temporary Variable
-let chatHistory = {
+// Firebase variables
+let db = null;
+let isFirebaseConnected = false;
+
+// User session management
+let currentUser = {
+    id: generateUserId(),
     sessionId: generateSessionId(),
     startTime: new Date().toISOString(),
+    lastActivity: new Date().toISOString()
+};
+
+// Chat Storage
+let chatHistory = {
+    userId: currentUser.id,
+    sessionId: currentUser.sessionId,
+    startTime: currentUser.startTime,
     messages: [],
     metadata: {
         userAgent: navigator.userAgent,
         language: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        projectId: FIREBASE_PROJECT_ID
+        projectId: FIREBASE_CONFIG.projectId
     }
 };
-
-// Firebase Configuration (will be initialized when user connects)
-let firebaseConfig = null;
-let db = null;
-let isFirebaseConnected = false;
 
 const userData = {
     message: null,
     file: null
 };
 
+// Generate unique user ID
+function generateUserId() {
+    return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
 // Generate unique session ID
 function generateSessionId() {
-    return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Generate unique message ID
+function generateMessageId() {
+    return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
 // Store message in chat history
@@ -63,92 +92,46 @@ const storeMessage = (type, content, file = null, timestamp = new Date().toISOSt
     };
     
     chatHistory.messages.push(message);
+    currentUser.lastActivity = timestamp;
     
     // Auto-save to Firebase if connected
     if (isFirebaseConnected) {
         saveChatToFirebase();
     }
     
-    // Log for debugging
-    console.log('Chat History Updated:', chatHistory);
+    // Auto-save to localStorage as backup
+    saveToLocalStorage();
     
+    console.log('Message stored:', message);
     return message;
 };
 
-// Generate unique message ID
-function generateMessageId() {
-    return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
-
-// Get chat history
-const getChatHistory = () => {
-    return { ...chatHistory };
-};
-
-// Clear chat history
-const clearChatHistory = () => {
-    chatHistory = {
-        sessionId: generateSessionId(),
-        startTime: new Date().toISOString(),
-        messages: [],
-        metadata: {
-            userAgent: navigator.userAgent,
-            language: navigator.language,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            projectId: FIREBASE_PROJECT_ID
-        }
-    };
-    
-    console.log('Chat history cleared');
-};
-
-// Export chat history as JSON
-const exportChatHistory = () => {
-    const dataStr = JSON.stringify(chatHistory, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `chat_history_${chatHistory.sessionId}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-};
-
-// Firebase Integration Functions
-const initializeFirebase = async (config) => {
+// Initialize Firebase automatically
+const initializeFirebase = async () => {
     try {
-        // Ensure project ID is set
-        const fullConfig = {
-            projectId: FIREBASE_PROJECT_ID,
-            ...config
-        };
-        
         // Import Firebase modules dynamically
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        const { getFirestore, collection, addDoc, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        // Initialize Firebase
-        const app = initializeApp(fullConfig);
+        // Initialize Firebase with our config
+        const app = initializeApp(FIREBASE_CONFIG);
         db = getFirestore(app);
-        firebaseConfig = fullConfig;
         isFirebaseConnected = true;
         
-        // Update UI
-        updateFirebaseButton(true);
+        // Update connection status
+        updateConnectionStatus(true);
         
         // Save current chat history to Firebase
         await saveChatToFirebase();
         
-        console.log('Firebase connected successfully to project:', FIREBASE_PROJECT_ID);
-        showNotification(`✅ Connected to Firebase project: ${FIREBASE_PROJECT_ID}`, 'success');
+        console.log('Firebase connected successfully to project:', FIREBASE_CONFIG.projectId);
+        showNotification('✅ Connected to cloud storage!', 'success');
         
         return true;
     } catch (error) {
         console.error('Firebase initialization error:', error);
-        showNotification('❌ Firebase connection failed: ' + error.message, 'error');
+        updateConnectionStatus(false);
+        showNotification('⚠️ Cloud storage unavailable, using local storage', 'warning');
         return false;
     }
 };
@@ -160,37 +143,81 @@ const saveChatToFirebase = async () => {
     try {
         const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        await setDoc(doc(db, 'chats', chatHistory.sessionId), {
+        const chatData = {
             ...chatHistory,
-            lastUpdated: new Date().toISOString()
-        });
+            lastUpdated: new Date().toISOString(),
+            userInfo: currentUser
+        };
         
-        console.log('Chat saved to Firebase project:', FIREBASE_PROJECT_ID);
+        await setDoc(doc(db, 'user_chats', currentUser.id), chatData);
+        console.log('Chat saved to Firebase for user:', currentUser.id);
     } catch (error) {
         console.error('Error saving to Firebase:', error);
-        showNotification('⚠️ Failed to save to Firebase', 'warning');
+        showNotification('⚠️ Failed to sync with cloud storage', 'warning');
     }
 };
 
 // Load chat from Firebase
-const loadChatFromFirebase = async (sessionId) => {
+const loadChatFromFirebase = async (userId) => {
     if (!isFirebaseConnected || !db) return null;
     
     try {
         const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        const docRef = doc(db, 'chats', sessionId);
+        const docRef = doc(db, 'user_chats', userId);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
             return docSnap.data();
         } else {
-            console.log('No chat found with this session ID');
+            console.log('No chat found for user:', userId);
             return null;
         }
     } catch (error) {
         console.error('Error loading from Firebase:', error);
         return null;
+    }
+};
+
+// Save to localStorage as backup
+const saveToLocalStorage = () => {
+    try {
+        localStorage.setItem('shiftai_user', JSON.stringify(currentUser));
+        localStorage.setItem('shiftai_chat_' + currentUser.id, JSON.stringify(chatHistory));
+    } catch (error) {
+        console.warn('Failed to save to localStorage:', error);
+    }
+};
+
+// Load from localStorage
+const loadFromLocalStorage = () => {
+    try {
+        const savedUser = localStorage.getItem('shiftai_user');
+        if (savedUser) {
+            const userData = JSON.parse(savedUser);
+            const savedChat = localStorage.getItem('shiftai_chat_' + userData.id);
+            
+            if (savedChat) {
+                currentUser = userData;
+                chatHistory = JSON.parse(savedChat);
+                console.log('Chat history restored from localStorage');
+                return true;
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to restore from localStorage:', error);
+    }
+    return false;
+};
+
+// Update connection status indicator
+const updateConnectionStatus = (connected) => {
+    if (connected) {
+        connectionStatus.textContent = '🟢 Connected';
+        connectionStatus.title = 'Connected to cloud storage';
+    } else {
+        connectionStatus.textContent = '🟡 Local Only';
+        connectionStatus.title = 'Using local storage only';
     }
 };
 
@@ -235,248 +262,6 @@ const showNotification = (message, type = 'info') => {
     }, 3000);
 };
 
-// Update Firebase button appearance
-const updateFirebaseButton = (connected) => {
-    const button = firebaseButton;
-    if (connected) {
-        button.innerHTML = '<i class="bi bi-cloud-check"></i>';
-        button.title = `Connected to ${FIREBASE_PROJECT_ID} - Click to disconnect`;
-        button.classList.add('connected');
-    } else {
-        button.innerHTML = '<i class="bi bi-cloud"></i>';
-        button.title = `Connect to Firebase project: ${FIREBASE_PROJECT_ID}`;
-        button.classList.remove('connected');
-    }
-};
-
-// Handle Firebase connection
-const handleFirebaseConnection = () => {
-    if (isFirebaseConnected) {
-        // Disconnect Firebase
-        disconnectFirebase();
-    } else {
-        // Show Firebase configuration modal
-        showFirebaseConfigModal();
-    }
-};
-
-// Disconnect Firebase
-const disconnectFirebase = () => {
-    firebaseConfig = null;
-    db = null;
-    isFirebaseConnected = false;
-    updateFirebaseButton(false);
-    showNotification(`🔌 Disconnected from Firebase project: ${FIREBASE_PROJECT_ID}`, 'info');
-};
-
-// Show Firebase configuration modal
-const showFirebaseConfigModal = () => {
-    const modal = document.createElement('div');
-    modal.className = 'firebase-modal';
-    modal.innerHTML = `
-        <div class="firebase-modal-content">
-            <div class="firebase-modal-header">
-                <h3>Connect to Firebase</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <div class="firebase-modal-body">
-                <p>Connect to your Firebase project: <strong>${FIREBASE_PROJECT_ID}</strong></p>
-                <p>Please provide your Firebase configuration to enable persistent chat storage:</p>
-                <textarea id="firebase-config" placeholder='Paste your Firebase config object here:
-{
-  "apiKey": "your-api-key",
-  "authDomain": "${FIREBASE_PROJECT_ID}.firebaseapp.com",
-  "projectId": "${FIREBASE_PROJECT_ID}",
-  "storageBucket": "${FIREBASE_PROJECT_ID}.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "your-app-id"
-}'></textarea>
-                <div class="firebase-modal-actions">
-                    <button id="connect-firebase" class="primary-btn">Connect to ${FIREBASE_PROJECT_ID}</button>
-                    <button id="cancel-firebase" class="secondary-btn">Cancel</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Add modal styles
-    const style = document.createElement('style');
-    style.textContent = `
-        .firebase-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            animation: fadeIn 0.3s ease-out;
-        }
-        
-        .firebase-modal-content {
-            background: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow: hidden;
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        .firebase-modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-        }
-        
-        .firebase-modal-header h3 {
-            margin: 0;
-            color: white;
-        }
-        
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: rgba(255, 255, 255, 0.8);
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-        
-        .close-modal:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-        
-        .firebase-modal-body {
-            padding: 20px;
-        }
-        
-        .firebase-modal-body p {
-            margin: 0 0 15px 0;
-            color: #6b7280;
-            line-height: 1.5;
-        }
-        
-        .firebase-modal-body strong {
-            color: #4f46e5;
-            font-weight: 600;
-        }
-        
-        #firebase-config {
-            width: 100%;
-            height: 200px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            resize: vertical;
-            margin-bottom: 20px;
-        }
-        
-        #firebase-config:focus {
-            outline: none;
-            border-color: #4f46e5;
-        }
-        
-        .firebase-modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        
-        .primary-btn, .secondary-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        
-        .primary-btn {
-            background: #4f46e5;
-            color: white;
-        }
-        
-        .primary-btn:hover {
-            background: #4338ca;
-        }
-        
-        .secondary-btn {
-            background: #f3f4f6;
-            color: #374151;
-        }
-        
-        .secondary-btn:hover {
-            background: #e5e7eb;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    `;
-    
-    document.head.appendChild(style);
-    document.body.appendChild(modal);
-    
-    // Event listeners
-    modal.querySelector('.close-modal').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        document.head.removeChild(style);
-    });
-    
-    modal.querySelector('#cancel-firebase').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        document.head.removeChild(style);
-    });
-    
-    modal.querySelector('#connect-firebase').addEventListener('click', async () => {
-        const configText = modal.querySelector('#firebase-config').value.trim();
-        
-        try {
-            const config = JSON.parse(configText);
-            const success = await initializeFirebase(config);
-            
-            if (success) {
-                document.body.removeChild(modal);
-                document.head.removeChild(style);
-            }
-        } catch (error) {
-            showNotification('❌ Invalid Firebase configuration format', 'error');
-        }
-    });
-    
-    // Close on backdrop click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-            document.head.removeChild(style);
-        }
-    });
-};
-
 // Emoji data organized by categories
 const emojiData = {
     smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏'],
@@ -495,7 +280,7 @@ const autoResizeTextarea = () => {
     messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
 };
 
-// Create message elements with improved structure
+// Create message elements
 const createMessageElement = (content, ...classes) => {
     const div = document.createElement("div");
     div.classList.add("message", ...classes);
@@ -524,7 +309,9 @@ const getFileIcon = (fileName) => {
         'jpeg': 'bi-file-earmark-image',
         'png': 'bi-file-earmark-image',
         'gif': 'bi-file-earmark-image',
-        'webp': 'bi-file-earmark-image'
+        'webp': 'bi-file-earmark-image',
+        'zip': 'bi-file-earmark-zip',
+        'rar': 'bi-file-earmark-zip'
     };
     return iconMap[extension] || 'bi-file-earmark';
 };
@@ -576,7 +363,7 @@ const handleFileSelect = (event) => {
     
     // Check file size (limit to 10MB)
     if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+        showNotification('❌ File size must be less than 10MB', 'error');
         return;
     }
     
@@ -633,7 +420,7 @@ const createFileAttachment = (file) => {
     }
 };
 
-// Enhanced bot response generation with file handling
+// Enhanced bot response generation
 const generateBotResponse = async (incomingMessageDiv) => {
     const messageElement = incomingMessageDiv.querySelector(".bot-msgs-text");
     
@@ -715,7 +502,7 @@ const scrollToBottom = () => {
     });
 };
 
-// Handle outgoing messages with file support
+// Handle outgoing messages
 const handleOutGoingMsg = async (e) => {
     e.preventDefault();
     
@@ -772,6 +559,20 @@ const handleOutGoingMsg = async (e) => {
     }, 500);
 };
 
+// Show chat interface
+const showChatInterface = () => {
+    introPage.style.display = 'none';
+    chatbotPopup.style.display = 'block';
+    messageInput.focus();
+    scrollToBottom();
+};
+
+// Show intro page
+const showIntroPage = () => {
+    chatbotPopup.style.display = 'none';
+    introPage.style.display = 'flex';
+};
+
 // Close overlays when clicking outside
 const closeOverlays = (e) => {
     if (!emojiPicker.contains(e.target) && !emojiButton.contains(e.target)) {
@@ -780,7 +581,7 @@ const closeOverlays = (e) => {
     }
 };
 
-// Enhanced event listeners
+// Event listeners
 messageInput.addEventListener("input", autoResizeTextarea);
 
 messageInput.addEventListener("keydown", (e) => {
@@ -795,6 +596,12 @@ messageInput.addEventListener("keydown", (e) => {
 
 chatForm.addEventListener("submit", handleOutGoingMsg);
 
+// Start chat button
+startChatButton.addEventListener("click", showChatInterface);
+
+// Back to intro button
+backToIntroButton.addEventListener("click", showIntroPage);
+
 // Emoji picker events
 emojiButton.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -804,11 +611,8 @@ emojiButton.addEventListener("click", (e) => {
 // Emoji category selection
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('emoji-category')) {
-        // Remove active class from all categories
         document.querySelectorAll('.emoji-category').forEach(cat => cat.classList.remove('active'));
-        // Add active class to clicked category
         e.target.classList.add('active');
-        // Load emojis for selected category
         loadEmojis(e.target.dataset.category);
     }
 });
@@ -823,15 +627,12 @@ fileButton.addEventListener("click", () => {
 fileInput.addEventListener("change", handleFileSelect);
 removeFileButton.addEventListener("click", removeFile);
 
-// Firebase button event
-firebaseButton.addEventListener("click", handleFirebaseConnection);
-
 // Close overlays when clicking outside
 document.addEventListener("click", closeOverlays);
 
 // Close button functionality
 closeButton.addEventListener("click", () => {
-    const popup = document.querySelector(".chatbot-popup");
+    const popup = chatbotPopup;
     popup.style.transform = "scale(0.8) translateY(20px)";
     popup.style.opacity = "0.7";
     
@@ -841,15 +642,32 @@ closeButton.addEventListener("click", () => {
     }, 300);
 });
 
-// Global functions for external access
-window.chatbotAPI = {
-    getChatHistory,
-    clearChatHistory,
-    exportChatHistory,
-    connectFirebase: initializeFirebase,
-    disconnectFirebase,
-    isFirebaseConnected: () => isFirebaseConnected,
-    getProjectId: () => FIREBASE_PROJECT_ID
+// Global API for external access
+window.shiftAI = {
+    getChatHistory: () => ({ ...chatHistory }),
+    getCurrentUser: () => ({ ...currentUser }),
+    exportChatHistory: () => {
+        const dataStr = JSON.stringify(chatHistory, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `shiftai_chat_${currentUser.id}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+    clearChatHistory: () => {
+        chatHistory.messages = [];
+        saveToLocalStorage();
+        if (isFirebaseConnected) {
+            saveChatToFirebase();
+        }
+        showNotification('🗑️ Chat history cleared!', 'info');
+    },
+    isConnected: () => isFirebaseConnected
 };
 
 // Keyboard shortcuts
@@ -857,7 +675,7 @@ document.addEventListener('keydown', (e) => {
     // Ctrl/Cmd + E to export chat history
     if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();
-        exportChatHistory();
+        window.shiftAI.exportChatHistory();
         showNotification('📥 Chat history exported!', 'success');
     }
     
@@ -865,28 +683,38 @@ document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
         e.preventDefault();
         if (confirm('Are you sure you want to clear the chat history? This action cannot be undone.')) {
-            clearChatHistory();
-            showNotification('🗑️ Chat history cleared!', 'info');
+            window.shiftAI.clearChatHistory();
         }
+    }
+    
+    // Escape to go back to intro
+    if (e.key === 'Escape' && chatbotPopup.style.display !== 'none') {
+        showIntroPage();
     }
 });
 
-// Initialize
-document.addEventListener("DOMContentLoaded", () => {
-    messageInput.focus();
-    scrollToBottom();
+// Initialize application
+document.addEventListener("DOMContentLoaded", async () => {
+    // Try to load existing user data
+    const hasExistingData = loadFromLocalStorage();
     
-    // Store initial bot message
-    storeMessage('bot', "👋 Hey there!\nI'm ShiftAI, your intelligent assistant. How can I help you today?");
+    // Initialize Firebase connection
+    await initializeFirebase();
     
-    console.log(`Chatbot initialized with Firebase project: ${FIREBASE_PROJECT_ID}`);
+    // Store initial bot message if no existing data
+    if (!hasExistingData) {
+        storeMessage('bot', "👋 Welcome back!\nI'm ShiftAI, your intelligent assistant. How can I help you today?");
+    }
+    
+    console.log('ShiftAI initialized successfully');
+    console.log('User ID:', currentUser.id);
+    console.log('Session ID:', currentUser.sessionId);
+    console.log('Firebase connected:', isFirebaseConnected);
     console.log('Available commands:');
     console.log('- Ctrl/Cmd + E: Export chat history');
     console.log('- Ctrl/Cmd + Shift + C: Clear chat history');
-    console.log('- Access chatbotAPI from console for programmatic control');
-    
-    // Update Firebase button with project info
-    updateFirebaseButton(false);
+    console.log('- Escape: Back to intro page');
+    console.log('- Access window.shiftAI for programmatic control');
 });
 
 // Handle window resize
@@ -894,30 +722,31 @@ window.addEventListener("resize", () => {
     scrollToBottom();
 });
 
-// Auto-save chat history to localStorage as backup
+// Auto-save periodically
 setInterval(() => {
-    try {
-        localStorage.setItem('chatbot_backup', JSON.stringify(chatHistory));
-    } catch (error) {
-        console.warn('Failed to backup chat to localStorage:', error);
-    }
-}, 30000); // Backup every 30 seconds
-
-// Load backup on page load
-try {
-    const backup = localStorage.getItem('chatbot_backup');
-    if (backup) {
-        const backupData = JSON.parse(backup);
-        // Only restore if it's from the same session or recent
-        const backupTime = new Date(backupData.startTime);
-        const now = new Date();
-        const hoursDiff = (now - backupTime) / (1000 * 60 * 60);
-        
-        if (hoursDiff < 24) { // Restore if less than 24 hours old
-            chatHistory = backupData;
-            console.log('Chat history restored from backup');
+    if (chatHistory.messages.length > 0) {
+        saveToLocalStorage();
+        if (isFirebaseConnected) {
+            saveChatToFirebase();
         }
     }
-} catch (error) {
-    console.warn('Failed to restore chat backup:', error);
-}
+}, 30000); // Save every 30 seconds
+
+// Handle page visibility change
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        // Save when user leaves the page
+        saveToLocalStorage();
+        if (isFirebaseConnected) {
+            saveChatToFirebase();
+        }
+    }
+});
+
+// Handle page unload
+window.addEventListener('beforeunload', () => {
+    saveToLocalStorage();
+    if (isFirebaseConnected) {
+        saveChatToFirebase();
+    }
+});
