@@ -3,13 +3,33 @@ const chatbotBody = document.querySelector(".chatbot-messages");
 const sendMessageButton = document.querySelector("#send-message");
 const closeButton = document.querySelector("#close-chatbot");
 const chatForm = document.querySelector(".chat-form");
+const emojiButton = document.querySelector("#emoji-button");
+const fileButton = document.querySelector("#file-button");
+const fileInput = document.querySelector("#file-input");
+const emojiPicker = document.querySelector("#emoji-picker");
+const emojiGrid = document.querySelector("#emoji-grid");
+const filePreviewArea = document.querySelector("#file-preview-area");
+const removeFileButton = document.querySelector("#remove-file");
 
 // API Configuration
 const API_KEY = "AIzaSyAbKbDfO3zXS7j7_kyupUmCuVxuQiRzaao";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
 const userData = {
-    message: null
+    message: null,
+    file: null
+};
+
+// Emoji data organized by categories
+const emojiData = {
+    smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏'],
+    people: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅'],
+    nature: ['🌟', '⭐', '🌙', '☀️', '⛅', '🌤️', '⛈️', '🌧️', '❄️', '☃️', '⛄', '🌈', '🔥', '💧', '🌊', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎋', '🍃', '🍂', '🍁', '🌾', '🌺', '🌻', '🌹', '🥀'],
+    food: ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥙', '🧆', '🥚', '🍳', '🥘', '🍲', '🥗', '🍿', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🥪', '🍞', '🥖', '🥨', '🧀', '🥯', '🍎', '🍊', '🍋'],
+    activities: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿'],
+    travel: ['✈️', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🛵', '🚲', '🛴', '🛺', '🚨', '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚝'],
+    objects: ['💡', '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓️', '🧲', '🔫', '💣'],
+    symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈']
 };
 
 // Auto-resize textarea
@@ -26,16 +46,151 @@ const createMessageElement = (content, ...classes) => {
     return div;
 };
 
-// Enhanced bot response generation with better error handling
+// Format file size
+const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Get file icon based on file type
+const getFileIcon = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    const iconMap = {
+        'pdf': 'bi-file-earmark-pdf',
+        'doc': 'bi-file-earmark-word',
+        'docx': 'bi-file-earmark-word',
+        'txt': 'bi-file-earmark-text',
+        'jpg': 'bi-file-earmark-image',
+        'jpeg': 'bi-file-earmark-image',
+        'png': 'bi-file-earmark-image',
+        'gif': 'bi-file-earmark-image',
+        'webp': 'bi-file-earmark-image'
+    };
+    return iconMap[extension] || 'bi-file-earmark';
+};
+
+// Show emoji picker
+const showEmojiPicker = () => {
+    emojiPicker.classList.toggle('show');
+    filePreviewArea.classList.remove('show');
+    emojiButton.classList.toggle('active');
+    
+    if (emojiPicker.classList.contains('show')) {
+        loadEmojis('smileys');
+    }
+};
+
+// Load emojis for selected category
+const loadEmojis = (category) => {
+    emojiGrid.innerHTML = '';
+    const emojis = emojiData[category] || emojiData.smileys;
+    
+    emojis.forEach(emoji => {
+        const button = document.createElement('button');
+        button.className = 'emoji-item';
+        button.textContent = emoji;
+        button.addEventListener('click', () => insertEmoji(emoji));
+        emojiGrid.appendChild(button);
+    });
+};
+
+// Insert emoji into message input
+const insertEmoji = (emoji) => {
+    const cursorPos = messageInput.selectionStart;
+    const textBefore = messageInput.value.substring(0, cursorPos);
+    const textAfter = messageInput.value.substring(cursorPos);
+    
+    messageInput.value = textBefore + emoji + textAfter;
+    messageInput.focus();
+    messageInput.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+    
+    autoResizeTextarea();
+    emojiPicker.classList.remove('show');
+    emojiButton.classList.remove('active');
+};
+
+// Handle file selection
+const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check file size (limit to 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+    }
+    
+    userData.file = file;
+    showFilePreview(file);
+    emojiPicker.classList.remove('show');
+    emojiButton.classList.remove('active');
+};
+
+// Show file preview
+const showFilePreview = (file) => {
+    const fileName = filePreviewArea.querySelector('.file-name');
+    const fileSize = filePreviewArea.querySelector('.file-size');
+    const fileIcon = filePreviewArea.querySelector('.file-info i');
+    
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    fileIcon.className = `bi ${getFileIcon(file.name)}`;
+    
+    filePreviewArea.classList.add('show');
+};
+
+// Remove file
+const removeFile = () => {
+    userData.file = null;
+    fileInput.value = '';
+    filePreviewArea.classList.remove('show');
+};
+
+// Create file attachment element for message
+const createFileAttachment = (file) => {
+    if (file.type.startsWith('image/')) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve(`
+                    <div class="image-attachment">
+                        <img src="${e.target.result}" alt="${file.name}" />
+                    </div>
+                `);
+            };
+            reader.readAsDataURL(file);
+        });
+    } else {
+        return Promise.resolve(`
+            <div class="file-attachment">
+                <i class="bi ${getFileIcon(file.name)}"></i>
+                <div class="file-info">
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                </div>
+            </div>
+        `);
+    }
+};
+
+// Enhanced bot response generation with file handling
 const generateBotResponse = async (incomingMessageDiv) => {
     const messageElement = incomingMessageDiv.querySelector(".bot-msgs-text");
+    
+    let messageContent = userData.message;
+    if (userData.file) {
+        messageContent += `\n\n[User attached a file: ${userData.file.name}]`;
+    }
     
     const requestOptions = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{
-                parts: [{ text: userData.message }]
+                parts: [{ text: messageContent }]
             }]
         })
     };
@@ -51,7 +206,6 @@ const generateBotResponse = async (incomingMessageDiv) => {
         const apiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         
         if (apiResponseText) {
-            // Simulate typing effect
             messageElement.innerHTML = '';
             await typeMessage(messageElement, apiResponseText);
         } else {
@@ -97,29 +251,37 @@ const scrollToBottom = () => {
     });
 };
 
-// Handle outgoing messages with improved UX
-const handleOutGoingMsg = (e) => {
+// Handle outgoing messages with file support
+const handleOutGoingMsg = async (e) => {
     e.preventDefault();
     
     const message = messageInput.value.trim();
-    if (!message) return;
+    if (!message && !userData.file) return;
     
-    userData.message = message;
+    userData.message = message || "📎 File attached";
+    const currentFile = userData.file;
+    
+    // Clear inputs
     messageInput.value = "";
     messageInput.style.height = 'auto';
+    removeFile();
     
-    // Create and display user message
-    const messageContent = `
-        <div class="enter-msgs-text"></div>
-        <i id="user-logo" class="bi bi-person-circle"></i>
-    `;
+    // Create user message content
+    let messageContent = `<div class="enter-msgs-text">${userData.message}</div>`;
+    
+    // Add file attachment if present
+    if (currentFile) {
+        const fileAttachment = await createFileAttachment(currentFile);
+        messageContent = `<div class="enter-msgs-text">${userData.message}${fileAttachment}</div>`;
+    }
+    
+    messageContent += `<i id="user-logo" class="bi bi-person-circle"></i>`;
     
     const outgoingMessageDiv = createMessageElement(messageContent, "enter-msgs");
-    outgoingMessageDiv.querySelector(".enter-msgs-text").textContent = message;
     chatbotBody.appendChild(outgoingMessageDiv);
     scrollToBottom();
 
-    // Show bot thinking indicator after a short delay
+    // Show bot thinking indicator
     setTimeout(() => {
         const botMessageContent = `
             <svg class="chatbot-logo" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 1024 1024">
@@ -143,6 +305,14 @@ const handleOutGoingMsg = (e) => {
     }, 500);
 };
 
+// Close overlays when clicking outside
+const closeOverlays = (e) => {
+    if (!emojiPicker.contains(e.target) && !emojiButton.contains(e.target)) {
+        emojiPicker.classList.remove('show');
+        emojiButton.classList.remove('active');
+    }
+};
+
 // Enhanced event listeners
 messageInput.addEventListener("input", autoResizeTextarea);
 
@@ -150,7 +320,7 @@ messageInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const userMessage = e.target.value.trim();
-        if (userMessage) {
+        if (userMessage || userData.file) {
             handleOutGoingMsg(e);
         }
     }
@@ -158,7 +328,38 @@ messageInput.addEventListener("keydown", (e) => {
 
 chatForm.addEventListener("submit", handleOutGoingMsg);
 
-// Close button functionality (minimize effect)
+// Emoji picker events
+emojiButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showEmojiPicker();
+});
+
+// Emoji category selection
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('emoji-category')) {
+        // Remove active class from all categories
+        document.querySelectorAll('.emoji-category').forEach(cat => cat.classList.remove('active'));
+        // Add active class to clicked category
+        e.target.classList.add('active');
+        // Load emojis for selected category
+        loadEmojis(e.target.dataset.category);
+    }
+});
+
+// File upload events
+fileButton.addEventListener("click", () => {
+    fileInput.click();
+    emojiPicker.classList.remove('show');
+    emojiButton.classList.remove('active');
+});
+
+fileInput.addEventListener("change", handleFileSelect);
+removeFileButton.addEventListener("click", removeFile);
+
+// Close overlays when clicking outside
+document.addEventListener("click", closeOverlays);
+
+// Close button functionality
 closeButton.addEventListener("click", () => {
     const popup = document.querySelector(".chatbot-popup");
     popup.style.transform = "scale(0.8) translateY(20px)";

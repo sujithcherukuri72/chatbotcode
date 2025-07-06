@@ -204,6 +204,52 @@ html, body {
     word-wrap: break-word;
 }
 
+.file-attachment {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-attachment i {
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+.file-attachment .file-info {
+    flex: 1;
+}
+
+.file-attachment .file-name {
+    display: block;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.file-attachment .file-size {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.image-attachment {
+    margin-top: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 200px;
+}
+
+.image-attachment img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
 #user-logo {
     height: 36px;
     width: 36px;
@@ -253,6 +299,161 @@ html, body {
         transform: translateY(-8px);
         opacity: 1;
     }
+}
+
+/* Emoji Picker Styles */
+.emoji-picker {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    max-height: 300px;
+    display: none;
+    z-index: 1000;
+    animation: slideUpFade 0.2s ease-out;
+}
+
+.emoji-picker.show {
+    display: block;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.emoji-picker-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.emoji-categories {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.emoji-category {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+.emoji-category:hover,
+.emoji-category.active {
+    background: rgba(79, 70, 229, 0.1);
+    opacity: 1;
+}
+
+.emoji-grid {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.emoji-item {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-item:hover {
+    background: rgba(79, 70, 229, 0.1);
+    transform: scale(1.1);
+}
+
+/* File Preview Styles */
+.file-preview-area {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 12px 16px;
+    display: none;
+    z-index: 999;
+    animation: slideUpFade 0.2s ease-out;
+}
+
+.file-preview-area.show {
+    display: block;
+}
+
+.file-preview-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-info i {
+    font-size: 1.5rem;
+    color: #4f46e5;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.file-size {
+    color: #6b7280;
+    font-size: 0.8rem;
+    margin-left: 8px;
+}
+
+.remove-file {
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #ef4444;
+    transition: all 0.2s ease;
+}
+
+.remove-file:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
 }
 
 .chatbot-footer {
@@ -327,6 +528,11 @@ html, body {
     transform: translateY(-1px);
 }
 
+.chat-controls button.active {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+}
+
 #send-message {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
     color: white;
@@ -380,6 +586,17 @@ html, body {
     .chatbot-footer {
         padding: 16px;
     }
+    
+    .emoji-picker,
+    .file-preview-area {
+        left: 16px;
+        right: 16px;
+        bottom: 76px;
+    }
+    
+    .emoji-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
 }
 
 /* Dark mode support */
@@ -414,5 +631,24 @@ html, body {
     
     .message-input::placeholder {
         color: #6b7280;
+    }
+    
+    .emoji-picker,
+    .file-preview-area {
+        background: #1f2937;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .emoji-category:hover,
+    .emoji-category.active {
+        background: rgba(79, 70, 229, 0.2);
+    }
+    
+    .emoji-item:hover {
+        background: rgba(79, 70, 229, 0.2);
+    }
+    
+    .file-name {
+        color: #f3f4f6;
     }
 }

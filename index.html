@@ -33,6 +33,39 @@
             </div>
         </div>
         
+        <!-- Emoji Picker -->
+        <div class="emoji-picker" id="emoji-picker">
+            <div class="emoji-picker-header">
+                <div class="emoji-categories">
+                    <button class="emoji-category active" data-category="smileys">😀</button>
+                    <button class="emoji-category" data-category="people">👋</button>
+                    <button class="emoji-category" data-category="nature">🌟</button>
+                    <button class="emoji-category" data-category="food">🍕</button>
+                    <button class="emoji-category" data-category="activities">⚽</button>
+                    <button class="emoji-category" data-category="travel">✈️</button>
+                    <button class="emoji-category" data-category="objects">💡</button>
+                    <button class="emoji-category" data-category="symbols">❤️</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="emoji-grid">
+                <!-- Emojis will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- File Preview Area -->
+        <div class="file-preview-area" id="file-preview-area">
+            <div class="file-preview-content">
+                <div class="file-info">
+                    <i class="bi bi-file-earmark"></i>
+                    <span class="file-name"></span>
+                    <span class="file-size"></span>
+                </div>
+                <button class="remove-file" id="remove-file">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+        
         <div class="chatbot-footer">
             <form action="#" class="chat-form">
                 <textarea 
@@ -44,12 +77,13 @@
                     aria-label="Message input"
                 ></textarea>
                 <div class="chat-controls">
-                    <button type="button" aria-label="Add emoji">
+                    <button type="button" id="emoji-button" aria-label="Add emoji">
                         <i class="bi bi-emoji-smile"></i>
                     </button>
-                    <button type="button" aria-label="Attach file">
+                    <button type="button" id="file-button" aria-label="Attach file">
                         <i class="bi bi-paperclip"></i>
                     </button>
+                    <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt" style="display: none;">
                     <button type="submit" id="send-message" aria-label="Send message">
                         <i class="bi bi-send-fill"></i>
                     </button>
