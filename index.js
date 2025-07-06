@@ -12,9 +12,12 @@ const firebaseButton = document.querySelector("#firebase-button");
 const filePreviewArea = document.querySelector("#file-preview-area");
 const removeFileButton = document.querySelector("#remove-file");
 
-// API Configuration
-const API_KEY = "AIzaSyAbKbDfO3zXS7j7_kyupUmCuVxuQiRzaao";
+// API Configuration - Updated with your credentials
+const API_KEY = "AIzaSyAXs4Q8o8mAPnr4AtErdzax3LXpJQ5vX3c";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+// Your Firebase Project Configuration
+const FIREBASE_PROJECT_ID = "indrones-auth";
 
 // Chat Storage - Temporary Variable
 let chatHistory = {
@@ -24,7 +27,8 @@ let chatHistory = {
     metadata: {
         userAgent: navigator.userAgent,
         language: navigator.language,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        projectId: FIREBASE_PROJECT_ID
     }
 };
 
@@ -90,7 +94,8 @@ const clearChatHistory = () => {
         metadata: {
             userAgent: navigator.userAgent,
             language: navigator.language,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            projectId: FIREBASE_PROJECT_ID
         }
     };
     
@@ -115,14 +120,20 @@ const exportChatHistory = () => {
 // Firebase Integration Functions
 const initializeFirebase = async (config) => {
     try {
+        // Ensure project ID is set
+        const fullConfig = {
+            projectId: FIREBASE_PROJECT_ID,
+            ...config
+        };
+        
         // Import Firebase modules dynamically
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
         const { getFirestore, collection, addDoc, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
         // Initialize Firebase
-        const app = initializeApp(config);
+        const app = initializeApp(fullConfig);
         db = getFirestore(app);
-        firebaseConfig = config;
+        firebaseConfig = fullConfig;
         isFirebaseConnected = true;
         
         // Update UI
@@ -131,8 +142,8 @@ const initializeFirebase = async (config) => {
         // Save current chat history to Firebase
         await saveChatToFirebase();
         
-        console.log('Firebase connected successfully');
-        showNotification('✅ Firebase connected successfully!', 'success');
+        console.log('Firebase connected successfully to project:', FIREBASE_PROJECT_ID);
+        showNotification(`✅ Connected to Firebase project: ${FIREBASE_PROJECT_ID}`, 'success');
         
         return true;
     } catch (error) {
@@ -154,7 +165,7 @@ const saveChatToFirebase = async () => {
             lastUpdated: new Date().toISOString()
         });
         
-        console.log('Chat saved to Firebase');
+        console.log('Chat saved to Firebase project:', FIREBASE_PROJECT_ID);
     } catch (error) {
         console.error('Error saving to Firebase:', error);
         showNotification('⚠️ Failed to save to Firebase', 'warning');
@@ -229,11 +240,11 @@ const updateFirebaseButton = (connected) => {
     const button = firebaseButton;
     if (connected) {
         button.innerHTML = '<i class="bi bi-cloud-check"></i>';
-        button.title = 'Firebase Connected - Click to disconnect';
+        button.title = `Connected to ${FIREBASE_PROJECT_ID} - Click to disconnect`;
         button.classList.add('connected');
     } else {
         button.innerHTML = '<i class="bi bi-cloud"></i>';
-        button.title = 'Connect to Firebase';
+        button.title = `Connect to Firebase project: ${FIREBASE_PROJECT_ID}`;
         button.classList.remove('connected');
     }
 };
@@ -255,7 +266,7 @@ const disconnectFirebase = () => {
     db = null;
     isFirebaseConnected = false;
     updateFirebaseButton(false);
-    showNotification('🔌 Disconnected from Firebase', 'info');
+    showNotification(`🔌 Disconnected from Firebase project: ${FIREBASE_PROJECT_ID}`, 'info');
 };
 
 // Show Firebase configuration modal
@@ -269,18 +280,19 @@ const showFirebaseConfigModal = () => {
                 <button class="close-modal">&times;</button>
             </div>
             <div class="firebase-modal-body">
-                <p>To enable persistent chat storage, please provide your Firebase configuration:</p>
+                <p>Connect to your Firebase project: <strong>${FIREBASE_PROJECT_ID}</strong></p>
+                <p>Please provide your Firebase configuration to enable persistent chat storage:</p>
                 <textarea id="firebase-config" placeholder='Paste your Firebase config object here:
 {
   "apiKey": "your-api-key",
-  "authDomain": "your-project.firebaseapp.com",
-  "projectId": "your-project-id",
-  "storageBucket": "your-project.appspot.com",
+  "authDomain": "${FIREBASE_PROJECT_ID}.firebaseapp.com",
+  "projectId": "${FIREBASE_PROJECT_ID}",
+  "storageBucket": "${FIREBASE_PROJECT_ID}.appspot.com",
   "messagingSenderId": "123456789",
   "appId": "your-app-id"
 }'></textarea>
                 <div class="firebase-modal-actions">
-                    <button id="connect-firebase" class="primary-btn">Connect</button>
+                    <button id="connect-firebase" class="primary-btn">Connect to ${FIREBASE_PROJECT_ID}</button>
                     <button id="cancel-firebase" class="secondary-btn">Cancel</button>
                 </div>
             </div>
@@ -320,11 +332,13 @@ const showFirebaseConfigModal = () => {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
         }
         
         .firebase-modal-header h3 {
             margin: 0;
-            color: #374151;
+            color: white;
         }
         
         .close-modal {
@@ -332,7 +346,7 @@ const showFirebaseConfigModal = () => {
             border: none;
             font-size: 24px;
             cursor: pointer;
-            color: #6b7280;
+            color: rgba(255, 255, 255, 0.8);
             padding: 0;
             width: 30px;
             height: 30px;
@@ -344,8 +358,8 @@ const showFirebaseConfigModal = () => {
         }
         
         .close-modal:hover {
-            background: #f3f4f6;
-            color: #374151;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
         }
         
         .firebase-modal-body {
@@ -356,6 +370,11 @@ const showFirebaseConfigModal = () => {
             margin: 0 0 15px 0;
             color: #6b7280;
             line-height: 1.5;
+        }
+        
+        .firebase-modal-body strong {
+            color: #4f46e5;
+            font-weight: 600;
         }
         
         #firebase-config {
@@ -829,7 +848,8 @@ window.chatbotAPI = {
     exportChatHistory,
     connectFirebase: initializeFirebase,
     disconnectFirebase,
-    isFirebaseConnected: () => isFirebaseConnected
+    isFirebaseConnected: () => isFirebaseConnected,
+    getProjectId: () => FIREBASE_PROJECT_ID
 };
 
 // Keyboard shortcuts
@@ -859,11 +879,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Store initial bot message
     storeMessage('bot', "👋 Hey there!\nI'm ShiftAI, your intelligent assistant. How can I help you today?");
     
-    console.log('Chatbot initialized with storage capabilities');
+    console.log(`Chatbot initialized with Firebase project: ${FIREBASE_PROJECT_ID}`);
     console.log('Available commands:');
     console.log('- Ctrl/Cmd + E: Export chat history');
     console.log('- Ctrl/Cmd + Shift + C: Clear chat history');
     console.log('- Access chatbotAPI from console for programmatic control');
+    
+    // Update Firebase button with project info
+    updateFirebaseButton(false);
 });
 
 // Handle window resize
